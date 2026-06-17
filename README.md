@@ -7,6 +7,12 @@
   <img src="https://img.shields.io/badge/Claude-claude--opus--4--8-8A2BE2?logo=anthropic" />
 </p>
 
+<p align="center">
+  <a href="https://ai-posing-coach-kwp2uaqhknf9yzv4cmbcjl.streamlit.app" target="_blank">
+    <img src="https://static.streamlit.io/badges/streamlit_badge_black_white.svg" alt="Open in Streamlit" />
+  </a>
+</p>
+
 ---
 
 ## 한국어
