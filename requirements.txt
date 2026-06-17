@@ -1,4 +1,4 @@
-mediapipe==0.10.35
+mediapipe
 numpy==1.26.4
 Pillow==12.2.0
 streamlit==1.58.0
