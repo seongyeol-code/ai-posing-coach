@@ -18,7 +18,7 @@
 
 ### 동기
 
-클래식 피지크 심사는 체형 비율과 사이즈, 대칭성, 심미성 등 많은 요소들이 심사 기준이 됩니다. 하지만 통상적으로 심사위원들의 주관적 판단과 성향에 따라 등수가 갈리기도 합니다. 이 프로젝트는 클래식 피지크 규정 포즈에서 1번과 3번으로 규정된 front double biceps, back double biceps 포즈에서 선수가 AI에게 포징 코치를 받음으로서 자세를 개선하고 객관적인 평가를 받음으로서 더 나은 포징과 일관적인 자세를 유지하기 위해 도움을 줄 수 있도록 설계하였습니다.
+클래식 피지크 심사는 체형 비율과 사이즈, 대칭성, 심미성 등 많은 요소들이 심사 기준이 됩니다. 하지만 통상적으로 심사위원들의 주관적 판단과 성향에 따라 등수가 갈리기도 합니다. 이 프로젝트는 클래식 피지크 규정 포즈 1번(front double biceps)과 3번(back double biceps)에서 선수가 AI 포징 코치를 통해 자세를 개선하고 객관적인 평가를 받음으로써 더 나은 포징과 일관적인 자세를 유지할 수 있도록 돕기 위해 만들었습니다.
 
 ### 주요 기능
 
@@ -99,7 +99,7 @@ Upload a pose photo and the app automatically detects 33 body landmarks via **Me
 ### Motivation
 
 Classic physique judging encompasses numerous criteria including physique proportions, muscle size, symmetry, and aesthetics. However, placements often vary depending on the subjective judgment and personal tendencies of individual judges.
-This project is designed to help competitors improve their posing and maintain consistent form by receiving AI-powered coaching feedback on the front double biceps (Pose 1) and back double biceps (Pose 3) — the two mandatory poses in classic physique competition — enabling athletes to refine their technique and receive objective evaluations.
+This project was created to help competitors improve their posing and maintain consistent form by receiving AI-powered coaching feedback on the two mandatory poses in classic physique competition — Pose 1 (Front Double Biceps) and Pose 3 (Back Double Biceps) — enabling athletes to refine their technique and receive objective, data-driven evaluations.
 
 ### Key Features
 
