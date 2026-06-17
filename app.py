@@ -1,14 +1,52 @@
+import urllib.request
+from pathlib import Path
+
 import mediapipe as mp
 import numpy as np
 import streamlit as st
+from mediapipe.framework.formats import landmark_pb2
+from mediapipe.tasks import python as mp_python
+from mediapipe.tasks.python import vision as mp_vision
 from PIL import Image
 
 from src.metrics import compute_all_metrics
 from src.feedback import generate_feedback
 
-mp_pose = mp.solutions.pose
-mp_drawing = mp.solutions.drawing_utils
-mp_drawing_styles = mp.solutions.drawing_styles
+_MODEL_URL = (
+    "https://storage.googleapis.com/mediapipe-models/"
+    "pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task"
+)
+_MODEL_PATH = Path("pose_landmarker_heavy.task")
+
+
+@st.cache_resource(show_spinner=False)
+def _load_landmarker():
+    if not _MODEL_PATH.exists():
+        with st.spinner("포즈 모델을 다운로드하는 중... (최초 1회)"):
+            urllib.request.urlretrieve(_MODEL_URL, _MODEL_PATH)
+    options = mp_vision.PoseLandmarkerOptions(
+        base_options=mp_python.BaseOptions(model_asset_path=str(_MODEL_PATH)),
+        running_mode=mp_vision.RunningMode.IMAGE,
+        num_poses=1,
+        min_pose_detection_confidence=0.5,
+        min_pose_presence_score=0.5,
+    )
+    return mp_vision.PoseLandmarker.create_from_options(options)
+
+
+class _LandmarksAdapter:
+    """Tasks API 결과를 metrics.py의 landmarks.landmark[idx] 인터페이스로 변환."""
+
+    class _Seq:
+        def __init__(self, lm):
+            self._lm = lm
+
+        def __getitem__(self, i):
+            return self._lm[i]
+
+    def __init__(self, landmarks):
+        self.landmark = self._Seq(landmarks)
+
 
 st.set_page_config(page_title="AI 포징 코치", page_icon="💪", layout="wide")
 st.title("💪 AI 클래식 피지크 포징 코치")
@@ -19,20 +57,26 @@ uploaded = st.file_uploader("포즈 사진 업로드", type=["jpg", "jpeg", "png
 if uploaded is not None:
     rgb = np.array(Image.open(uploaded).convert("RGB"))
 
-    with mp_pose.Pose(static_image_mode=True, model_complexity=2) as pose:
-        results = pose.process(rgb)
+    landmarker = _load_landmarker()
+    mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+    result = landmarker.detect(mp_image)
 
-    if results.pose_landmarks is None:
+    if not result.pose_landmarks:
         st.error("포즈 랜드마크를 감지하지 못했습니다. 전신이 잘 보이는 사진을 사용해 주세요.")
         st.stop()
 
-    # Draw landmarks on a copy of the image
+    # Draw landmarks using solutions drawing utils (Tasks API 결과를 proto로 변환)
     annotated = rgb.copy()
-    mp_drawing.draw_landmarks(
+    proto = landmark_pb2.NormalizedLandmarkList()
+    proto.landmark.extend([
+        landmark_pb2.NormalizedLandmark(x=lm.x, y=lm.y, z=lm.z)
+        for lm in result.pose_landmarks[0]
+    ])
+    mp.solutions.drawing_utils.draw_landmarks(
         annotated,
-        results.pose_landmarks,
-        mp_pose.POSE_CONNECTIONS,
-        landmark_drawing_spec=mp_drawing_styles.get_default_pose_landmarks_style(),
+        proto,
+        mp.solutions.pose.POSE_CONNECTIONS,
+        landmark_drawing_spec=mp.solutions.drawing_styles.get_default_pose_landmarks_style(),
     )
 
     col_img, col_metrics = st.columns([1, 1])
@@ -41,7 +85,7 @@ if uploaded is not None:
         st.subheader("포즈 분석")
         st.image(annotated, use_container_width=True)
 
-    metrics = compute_all_metrics(results.pose_landmarks)
+    metrics = compute_all_metrics(_LandmarksAdapter(result.pose_landmarks[0]))
 
     with col_metrics:
         st.subheader("측정 지표")
