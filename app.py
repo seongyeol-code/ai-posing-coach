@@ -5,12 +5,16 @@ import mediapipe as mp
 import numpy as np
 import streamlit as st
 from mediapipe.framework.formats import landmark_pb2
-from mediapipe.tasks import python as mp_python
-from mediapipe.tasks.python import vision as mp_vision
 from PIL import Image
 
 from src.metrics import compute_all_metrics
 from src.feedback import generate_feedback
+
+# Tasks API — 0.10.x 공식 권장 경로 (내부 mediapipe.tasks.python 경로 사용 안 함)
+BaseOptions = mp.tasks.BaseOptions
+PoseLandmarker = mp.tasks.vision.PoseLandmarker
+PoseLandmarkerOptions = mp.tasks.vision.PoseLandmarkerOptions
+RunningMode = mp.tasks.vision.RunningMode
 
 _MODEL_URL = (
     "https://storage.googleapis.com/mediapipe-models/"
@@ -24,14 +28,14 @@ def _load_landmarker():
     if not _MODEL_PATH.exists():
         with st.spinner("포즈 모델을 다운로드하는 중... (최초 1회)"):
             urllib.request.urlretrieve(_MODEL_URL, _MODEL_PATH)
-    options = mp_vision.PoseLandmarkerOptions(
-        base_options=mp_python.BaseOptions(model_asset_path=str(_MODEL_PATH)),
-        running_mode=mp_vision.RunningMode.IMAGE,
+    options = PoseLandmarkerOptions(
+        base_options=BaseOptions(model_asset_path=str(_MODEL_PATH)),
+        running_mode=RunningMode.IMAGE,
         num_poses=1,
         min_pose_detection_confidence=0.5,
         min_pose_presence_score=0.5,
     )
-    return mp_vision.PoseLandmarker.create_from_options(options)
+    return PoseLandmarker.create_from_options(options)
 
 
 class _LandmarksAdapter:
@@ -65,7 +69,7 @@ if uploaded is not None:
         st.error("포즈 랜드마크를 감지하지 못했습니다. 전신이 잘 보이는 사진을 사용해 주세요.")
         st.stop()
 
-    # Draw landmarks using solutions drawing utils (Tasks API 결과를 proto로 변환)
+    # Tasks API 결과(list[NormalizedLandmark])를 proto로 변환하여 drawing_utils에 전달
     annotated = rgb.copy()
     proto = landmark_pb2.NormalizedLandmarkList()
     proto.landmark.extend([
