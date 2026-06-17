@@ -1,3 +1,7 @@
+import os
+
+os.environ["MEDIAPIPE_DISABLE_GPU"] = "1"
+
 import mediapipe as mp
 import numpy as np
 import streamlit as st
@@ -10,6 +14,12 @@ mp_pose = mp.solutions.pose
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 
+
+@st.cache_resource(show_spinner=False)
+def _load_pose():
+    return mp_pose.Pose(static_image_mode=True, model_complexity=1)
+
+
 st.set_page_config(page_title="AI 포징 코치", page_icon="💪", layout="wide")
 st.title("💪 AI 클래식 피지크 포징 코치")
 st.caption("사진을 업로드하면 포즈를 분석하고 AI 코칭 피드백을 제공합니다.")
@@ -19,8 +29,8 @@ uploaded = st.file_uploader("포즈 사진 업로드", type=["jpg", "jpeg", "png
 if uploaded is not None:
     rgb = np.array(Image.open(uploaded).convert("RGB"))
 
-    with mp_pose.Pose(static_image_mode=True, model_complexity=2) as pose:
-        results = pose.process(rgb)
+    pose = _load_pose()
+    results = pose.process(rgb)
 
     if results.pose_landmarks is None:
         st.error("포즈 랜드마크를 감지하지 못했습니다. 전신이 잘 보이는 사진을 사용해 주세요.")
