@@ -65,7 +65,7 @@ def generate_feedback(metrics: dict) -> str:
 
     response = client.messages.create(
         model="claude-opus-4-8",
-        max_tokens=1024,
+        max_tokens=4096,
         system=_SYSTEM_PROMPT,
         messages=[{"role": "user", "content": user_message}],
     )
