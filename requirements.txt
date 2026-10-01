@@ -1,6 +1,5 @@
-mediapipe==0.10.11
-opencv-python-headless
-numpy==1.26.4
+mediapipe==1.0.1
+numpy>=2,<3
 Pillow==12.2.0
 streamlit==1.58.0
 anthropic==0.109.2

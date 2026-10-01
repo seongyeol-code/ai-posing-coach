@@ -1,114 +1,104 @@
-import os
+# app.py
+# Streamlit 화면: 사진 업로드 → 관절 감지 → 포즈 판별(프론트/백) → 지표 계산 → 코치 노트
 
-os.environ["MEDIAPIPE_DISABLE_GPU"] = "1"
-
-import mediapipe as mp
 import numpy as np
 import streamlit as st
-from PIL import Image
+from PIL import Image, ImageOps
 
+# 관절 감지는 src/pose.py 한 곳에서만 처리 (MediaPipe Tasks API)
+from src.pose import create_landmarker, detect_landmarks, draw_skeleton
+from src.classify import classify_pose, normalize_sides, FRONT
 from src.metrics import compute_all_metrics
 from src.feedback import generate_feedback
-
-mp_pose = mp.solutions.pose
-mp_drawing = mp.solutions.drawing_utils
-mp_drawing_styles = mp.solutions.drawing_styles
+from src import ui
 
 
-@st.cache_resource(show_spinner=False)
-def _load_pose():
-    return mp_pose.Pose(static_image_mode=True, model_complexity=1)
+# 포즈 감지기는 무거우니 앱이 켜질 때 한 번만 만들고 재사용
+@st.cache_resource(show_spinner="포즈 모델 준비 중...")
+def _load_landmarker():
+    return create_landmarker()
 
 
-st.set_page_config(page_title="AI 포징 코치", page_icon="💪", layout="wide")
-st.title("💪 AI 클래식 피지크 포징 코치")
-st.caption("사진을 업로드하면 포즈를 분석하고 AI 코칭 피드백을 제공합니다.")
+# 같은 사진을 다시 볼 때 Claude API를 또 부르지 않도록 결과를 기억해둠
+@st.cache_data(show_spinner=False)
+def _cached_feedback(metrics, view):
+    return generate_feedback(metrics, view)
 
-uploaded = st.file_uploader("포즈 사진 업로드", type=["jpg", "jpeg", "png"])
 
-if uploaded is not None:
-    rgb = np.array(Image.open(uploaded).convert("RGB"))
+st.set_page_config(page_title="AI Posing Coach", layout="wide")
+st.markdown(ui.CSS, unsafe_allow_html=True)
+st.markdown(ui.header_html(), unsafe_allow_html=True)
 
-    pose = _load_pose()
-    results = pose.process(rgb)
+uploaded = st.file_uploader(
+    "프론트 또는 백 더블 바이셉스 사진 (jpg, png)",
+    type=["jpg", "jpeg", "png"],
+)
 
-    if results.pose_landmarks is None:
-        st.error("포즈 랜드마크를 감지하지 못했습니다. 전신이 잘 보이는 사진을 사용해 주세요.")
-        st.stop()
+if uploaded is None:
+    st.markdown(ui.empty_html(), unsafe_allow_html=True)
+    st.stop()
 
-    annotated = rgb.copy()
-    mp_drawing.draw_landmarks(
-        annotated,
-        results.pose_landmarks,
-        mp_pose.POSE_CONNECTIONS,
-        landmark_drawing_spec=mp_drawing_styles.get_default_pose_landmarks_style(),
+# 폰 사진은 회전 정보(EXIF)가 따로 저장돼 있어서, 실제 방향으로 돌려준 뒤 분석
+image = ImageOps.exif_transpose(Image.open(uploaded)).convert("RGB")
+rgb = np.array(image)
+height, width = rgb.shape[:2]
+
+landmarks = detect_landmarks(_load_landmarker(), rgb)
+if landmarks is None:
+    st.markdown(
+        ui.reject_html("사진에서 사람을 찾지 못했어요. 전신이 밝게 나온 사진인지 확인해주세요."),
+        unsafe_allow_html=True,
     )
+    st.stop()
 
-    col_img, col_metrics = st.columns([1, 1])
+verdict = classify_pose(landmarks, height, width)
 
-    with col_img:
-        st.subheader("포즈 분석")
-        st.image(annotated, use_container_width=True)
+if not verdict.ok:
+    # 분석 거부: 뼈대 사진과 이유만 보여주고 끝
+    col_photo, col_msg = st.columns([5, 7], gap="large")
+    with col_photo:
+        st.markdown(ui.photo_html(draw_skeleton(rgb, landmarks)), unsafe_allow_html=True)
+    with col_msg:
+        st.markdown(ui.reject_html(verdict.reason), unsafe_allow_html=True)
+    st.stop()
 
-    metrics = compute_all_metrics(results.pose_landmarks)
+# 후면 사진이면 선수 기준 왼쪽/오른쪽이 맞도록 라벨 정리
+landmarks = normalize_sides(landmarks, verdict.view)
+metrics = compute_all_metrics(landmarks)
+pose_number = 1 if verdict.view == FRONT else 3
 
-    with col_metrics:
-        st.subheader("측정 지표")
-
-        vtaper = metrics["vtaper_ratio"]
-        vtaper_color = "normal" if 1.4 <= vtaper <= 1.6 else "inverse"
-        st.metric(
-            label="V-테이퍼 비율 (어깨 / 골반)",
-            value=f"{vtaper:.3f}",
-            delta="이상적 범위 1.4–1.6" if 1.4 <= vtaper <= 1.6 else f"{'높음' if vtaper > 1.6 else '낮음'} (목표: 1.4–1.6)",
-            delta_color=vtaper_color,
+# ── 1. 사진 + 판정 + 점수판 ─────────────────────────────
+col_photo, col_score = st.columns([5, 7], gap="large")
+with col_photo:
+    st.markdown(ui.photo_html(draw_skeleton(rgb, landmarks)), unsafe_allow_html=True)
+with col_score:
+    st.markdown(
+        ui.verdict_html(verdict, pose_number)
+        + ui.board_html(metrics["symmetry"]["overall"], metrics["vtaper_ratio"]),
+        unsafe_allow_html=True,
+    )
+    with st.expander("판정 근거 보기"):
+        s = verdict.signals
+        st.markdown(
+            f"""
+- 머리 방향 (코가 귀보다 카메라에 가까운 정도): **{s['head_depth']}** → 신호 {s['s_head']:+.2f}
+- 몸 방향 (코가 어깨보다 카메라에 가까운 정도): **{s['nose_depth']}** → 신호 {s['s_depth']:+.2f}
+- 좌우 순서 (왼어깨가 사진 오른쪽에 있는 정도): **{s['side_order']}** → 신호 {s['s_order']:+.2f}
+- 종합 점수: **{s['score']:+.2f}** (+는 정면, -는 후면)
+"""
         )
 
-        st.divider()
-        st.markdown("**좌우 대칭성 점수** (100 = 완벽)")
+# ── 2. 좌우 대칭 ─────────────────────────────────────
+st.markdown(ui.symmetry_html(metrics["symmetry"]), unsafe_allow_html=True)
 
-        sym = metrics["symmetry"]
-        sym_labels = {
-            "shoulder_height": "어깨 높이",
-            "hip_height": "골반 높이",
-            "arm_length": "팔 길이",
-            "leg_length": "다리 길이",
-            "elbow_angle": "팔꿈치 각도",
-            "knee_angle": "무릎 각도",
-            "overall": "전체 대칭",
-        }
-        for key, label in sym_labels.items():
-            score = sym[key]
-            color = "green" if score >= 90 else "orange" if score >= 75 else "red"
-            st.markdown(
-                f"- {label}: <span style='color:{color}; font-weight:bold'>{score:.1f}</span>",
-                unsafe_allow_html=True,
-            )
+# ── 3. 관절 각도 ─────────────────────────────────────
+st.markdown(ui.angles_html(metrics["joint_angles"]), unsafe_allow_html=True)
 
-        st.divider()
-        st.markdown("**관절 각도 (°)**")
-
-        angles = metrics["joint_angles"]
-        angle_labels = {
-            "left_elbow": "왼쪽 팔꿈치",
-            "right_elbow": "오른쪽 팔꿈치",
-            "left_knee": "왼쪽 무릎",
-            "right_knee": "오른쪽 무릎",
-            "left_shoulder_abduction": "왼쪽 어깨 외전",
-            "right_shoulder_abduction": "오른쪽 어깨 외전",
-            "left_hip_flexion": "왼쪽 고관절 굴곡",
-            "right_hip_flexion": "오른쪽 고관절 굴곡",
-            "trunk_lean": "체간 기울기",
-        }
-        for key, label in angle_labels.items():
-            st.markdown(f"- {label}: **{angles[key]:.1f}°**")
-
-    st.divider()
-    st.subheader("AI 코칭 피드백")
-
-    with st.spinner("Claude AI가 피드백을 생성하는 중..."):
+# ── 4. 코치 노트 (AI 피드백) ───────────────────────────
+st.markdown(ui.coach_title_html(), unsafe_allow_html=True)
+with st.container(key="coach"):
+    with st.spinner("코치 노트를 작성하는 중..."):
         try:
-            feedback = generate_feedback(metrics)
-            st.markdown(feedback)
+            st.markdown(_cached_feedback(metrics, verdict.view))
         except Exception as e:
-            st.error(f"피드백 생성 중 오류가 발생했습니다: {e}")
+            st.error(f"코치 노트를 만들지 못했어요: {e}")

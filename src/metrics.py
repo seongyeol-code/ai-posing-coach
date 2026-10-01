@@ -18,7 +18,9 @@ _IDX = {
 
 
 def _pt(landmarks, name: str) -> np.ndarray:
-    lm = landmarks.landmark[_IDX[name]]
+    # Tasks API는 관절 리스트를 바로 주고, 옛 방식은 .landmark 안에 리스트가 있음 → 둘 다 지원
+    points = getattr(landmarks, "landmark", landmarks)
+    lm = points[_IDX[name]]
     return np.array([lm.x, lm.y])
 
 

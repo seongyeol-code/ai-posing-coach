@@ -1,0 +1,7 @@
+# 화면 기본 테마 (src/ui.py의 무대 콘셉트 색과 맞춤)
+[theme]
+base = "dark"
+primaryColor = "#D6AA48"
+backgroundColor = "#000000"
+secondaryBackgroundColor = "#120E09"
+textColor = "#F4ECDC"

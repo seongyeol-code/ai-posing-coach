@@ -19,15 +19,27 @@ _SYSTEM_PROMPT = """당신은 클래식 피지크 포징 전문 코치입니다.
 4. 관절 각도 및 포징 디테일
 5. 개선을 위한 구체적인 조언
 
-간결하고 명확하게 작성하되, 선수에게 도움이 되는 실질적인 조언을 포함하세요."""
+간결하고 명확하게 작성하되, 선수에게 도움이 되는 실질적인 조언을 포함하세요.
+이모지는 사용하지 마세요."""
+
+# 포즈별로 코치가 특히 봐야 할 점
+_POSE_FOCUS = {
+    "front": "정면 포즈입니다. 팔꿈치 높이와 좌우 팔 각도의 균형, 허리 조임, 다리 자세를 중심으로 봐 주세요.",
+    "back": (
+        "후면 포즈입니다. 등을 보이고 선 자세이므로 팔 높이와 좌우 팔 각도의 균형, 등 넓이를 보여주는 어깨 라인, "
+        "한쪽 발을 뒤로 빼 종아리를 보여주는 하체 자세를 중심으로 봐 주세요. "
+        "좌우는 선수 본인 기준입니다."
+    ),
+}
 
 
-def generate_feedback(metrics: dict) -> str:
+def generate_feedback(metrics: dict, view: str | None = None) -> str:
     """
     Takes compute_all_metrics() output and returns Korean coaching feedback.
 
     Args:
         metrics: dict with keys vtaper_ratio, symmetry, joint_angles
+        view: "front"(프론트 더블 바이셉스) 또는 "back"(백 더블 바이셉스)
 
     Returns:
         Korean-language classic physique coaching feedback string
@@ -38,7 +50,10 @@ def generate_feedback(metrics: dict) -> str:
     symmetry = metrics["symmetry"]
     angles = metrics["joint_angles"]
 
+    pose_line = _POSE_FOCUS.get(view, "")
+
     user_message = f"""다음은 포징 분석 결과입니다. 이를 바탕으로 클래식 피지크 코칭 피드백을 한국어로 작성해 주세요.
+{pose_line}
 
 **V-테이퍼 비율**: {vtaper:.3f}
 (이상적 범위: 1.4–1.6 / 값이 높을수록 V자 체형이 뚜렷함)
