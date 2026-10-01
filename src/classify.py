@@ -26,6 +26,14 @@ LR_PAIRS = [
 # ---------------------------------------------------------------------------
 # 기준값 (실제 사진으로 숫자를 찍어보고 조정하는 값들)
 # ---------------------------------------------------------------------------
+# 0단계: 전신이 나왔는지 (MediaPipe 신뢰도 visibility, 0~1)
+# (측정: 전신 사진은 최저 0.84 이상, 다리가 잘린 사진은 발목이 0.0~0.04)
+MIN_VISIBILITY = 0.5
+REQUIRED_JOINTS = {
+    "어깨": (11, 12), "팔꿈치": (13, 14), "손목": (15, 16),
+    "골반": (23, 24), "무릎": (25, 26), "발목": (27, 28),
+}
+
 # 1단계: 더블 바이셉스 자세 조건
 ELBOW_HEIGHT_TOLERANCE = 0.35  # 팔꿈치가 어깨보다 (어깨너비 x 이 값)까지 낮아도 허용
 MAX_ELBOW_ANGLE = 155          # 팔꿈치 각도가 이보다 크면 팔을 편 것으로 봄 (도)
@@ -108,6 +116,27 @@ def _squash(value, scale):
 
 
 # ---------------------------------------------------------------------------
+# 0단계: 전신이 다 나왔나?
+# ---------------------------------------------------------------------------
+
+def check_full_body(lm):
+    """필요한 관절이 모두 사진에 보이면 (True, ""), 아니면 (False, 이유).
+    관절이 잘리면 MediaPipe가 위치를 "추측"해서 엉뚱한 각도가 나오기 때문에 먼저 걸러요."""
+    def visibility(i):
+        # 테스트용 가짜 좌표처럼 visibility 값이 없으면 보이는 것으로 처리
+        v = getattr(lm[i], "visibility", None)
+        return 1.0 if v is None else v
+
+    missing = [
+        part for part, idxs in REQUIRED_JOINTS.items()
+        if any(visibility(i) < MIN_VISIBILITY for i in idxs)
+    ]
+    if missing:
+        return False, f"사진에서 잘 보이지 않는 부위가 있어요({', '.join(missing)}). 머리부터 발끝까지 전신이 나오게 찍어주세요."
+    return True, ""
+
+
+# ---------------------------------------------------------------------------
 # 1단계: 더블 바이셉스 자세인가?
 # ---------------------------------------------------------------------------
 
@@ -170,6 +199,10 @@ WEIGHTS = {"s_head": 0.35, "s_depth": 0.35, "s_order": 0.3}
 
 def classify_pose(lm, image_height=1, image_width=1) -> PoseVerdict:
     """관절 33개와 사진 크기(픽셀)를 받아 포즈를 판별"""
+    visible, reason = check_full_body(lm)
+    if not visible:
+        return PoseVerdict(ok=False, reason=reason)
+
     lm = _to_points(lm, image_height, image_width)
     is_db, reason = check_double_biceps(lm)
     if not is_db:

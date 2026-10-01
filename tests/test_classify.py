@@ -72,6 +72,15 @@ class TestClassify(unittest.TestCase):
         self.assertFalse(v.ok)
         self.assertIn("더블 바이셉스 자세가 아니에요", v.reason)
 
+    def test_cut_off_legs_is_rejected(self):
+        lm = _double_biceps(FRONT)
+        # 발목이 사진 밖으로 잘려서 신뢰도가 낮은 경우
+        lm[27].visibility = 0.0   # 0.0도 확실히 걸러야 함
+        lm[28].visibility = 0.04
+        v = classify_pose(lm, 1000, 1000)
+        self.assertFalse(v.ok)
+        self.assertIn("발목", v.reason)
+
     def test_back_photo_labeled_as_front_gets_swapped(self):
         # MediaPipe가 후면 사진에 정면처럼 좌우 라벨을 붙인 경우
         lm = _double_biceps(FRONT)
