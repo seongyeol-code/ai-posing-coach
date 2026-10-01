@@ -44,6 +44,7 @@
 
 ### 포즈 판별 방식
 
+0. **전신 확인**: 어깨부터 발목까지 주요 관절의 신뢰도(visibility)가 낮으면, 잘린 부위를 알려주고 분석하지 않습니다.
 1. **더블 바이셉스 자세 확인**: 양 팔꿈치가 어깨 높이 근처에 있는지, 손목이 팔꿈치보다 위에 있는지, 팔이 굽어 있는지 확인합니다.
 2. **정면 / 후면 판별**: 세 가지 신호를 가중 합산합니다.
    - 머리 방향: 코가 귀보다 카메라에 가까운가 (MediaPipe의 깊이 값 z)
@@ -150,6 +151,7 @@ This project was created to help competitors improve their posing and maintain c
 
 ### How Classification Works
 
+0. **Full-body check**: if key joints from shoulders to ankles have low visibility, the app names the cut-off parts and stops.
 1. **Double biceps check**: both elbows near shoulder height, wrists above elbows, arms bent.
 2. **Front vs. back**: a weighted sum of three signals.
    - Head direction: is the nose closer to the camera than the ears? (MediaPipe depth z)

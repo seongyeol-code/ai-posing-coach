@@ -33,7 +33,7 @@ Pipeline: upload → `pose.detect_landmarks` → `classify.classify_pose` → `c
 
 - **`app.py`** — Streamlit entry point. Wires the pipeline; no styling logic.
 - **`src/pose.py`** — MediaPipe **Tasks API** (`PoseLandmarker`). Downloads `pose_landmarker_full.task` into `models/` on first run (falls back to temp dir). `draw_skeleton` draws body joints only (11–32); face points are hidden.
-- **`src/classify.py`** — Double-biceps check, then front/back from three weighted signals (nose vs ears depth, nose vs shoulders depth, left/right shoulder x order). Rejects ambiguous photos. Thresholds are constants at the top of the file. `normalize_sides` swaps L/R landmark pairs so labels match the athlete's own sides.
+- **`src/classify.py`** — Full-body visibility check, double-biceps check, then front/back from three weighted signals (nose vs ears depth, nose vs shoulders depth, left/right shoulder x order). Rejects ambiguous photos. Thresholds are constants at the top of the file. `normalize_sides` swaps L/R landmark pairs so labels match the athlete's own sides.
 - **`src/metrics.py`** — V-taper, symmetry (0–100), joint angles. Pass the image size: `compute_all_metrics(landmarks, height, width)`; y is scaled by height/width so angles don't distort with photo aspect ratio.
 - **`src/feedback.py`** — Claude API call; prompt adapts to `view` ("front"/"back").
 - **`src/ui.py`** — "competition stage" design: black + single gold accent, Big Shoulders Display + IBM Plex Sans KR. Returns HTML strings; CSS lives here. No emojis in the UI.
