@@ -156,5 +156,24 @@ def analyze_pose(image_path):
 
 
 # 직접 실행할 때 테스트
+#   python src/pose.py                      → samples 폴더의 첫 번째 사진으로 테스트
+#   python src/pose.py samples/back-1.jpg   → 지정한 사진으로 테스트
 if __name__ == "__main__":
-    analyze_pose(os.path.join(PROJECT_ROOT, "samples", "ramon-test.jpg"))
+    import sys
+
+    if len(sys.argv) > 1:
+        target = sys.argv[1]
+    else:
+        samples_dir = os.path.join(PROJECT_ROOT, "samples")
+        photos = sorted(
+            f for f in os.listdir(samples_dir)
+            if f.lower().endswith((".jpg", ".jpeg", ".png")) and f != "result.jpg"
+        ) if os.path.isdir(samples_dir) else []
+        if not photos:
+            print("samples 폴더에 테스트할 사진(jpg, png)을 넣거나, 사진 경로를 함께 적어주세요.")
+            print("예: python src/pose.py samples/front-1.jpg")
+            sys.exit(1)
+        target = os.path.join(samples_dir, photos[0])
+
+    print(f"테스트 사진: {target}")
+    analyze_pose(target)

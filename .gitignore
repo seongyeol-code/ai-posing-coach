@@ -221,3 +221,10 @@ __marimo__/
 
 # MediaPipe model files
 *.task
+
+# 개인·저작권 사진은 올리지 않음 (테스트 사진은 각자 samples/에 넣어서 사용)
+samples/*
+!samples/.gitkeep
+
+# 포즈 모델 폴더 (처음 실행 시 자동 다운로드)
+models/

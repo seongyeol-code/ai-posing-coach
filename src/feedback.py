@@ -1,3 +1,7 @@
+# src/feedback.py
+# 계산된 지표를 Claude API에 보내 코치 노트(한국어 피드백)를 만드는 모듈
+# API 키는 .env 파일의 ANTHROPIC_API_KEY에서 읽어요 (Streamlit Cloud에선 Secrets에 설정).
+
 import anthropic
 from dotenv import load_dotenv
 
@@ -34,15 +38,14 @@ _POSE_FOCUS = {
 
 
 def generate_feedback(metrics: dict, view: str | None = None) -> str:
-    """
-    Takes compute_all_metrics() output and returns Korean coaching feedback.
+    """지표를 Claude API에 보내 한국어 코치 노트를 받아옴.
 
     Args:
-        metrics: dict with keys vtaper_ratio, symmetry, joint_angles
+        metrics: compute_all_metrics()의 결과 (vtaper_ratio, symmetry, joint_angles)
         view: "front"(프론트 더블 바이셉스) 또는 "back"(백 더블 바이셉스)
 
     Returns:
-        Korean-language classic physique coaching feedback string
+        클래식 피지크 코칭 피드백 (마크다운 문자열)
     """
     client = anthropic.Anthropic()
 
