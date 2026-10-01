@@ -62,10 +62,14 @@ def get_model_path():
             os.makedirs(folder, exist_ok=True)
             path = os.path.join(folder, MODEL_NAME)
             print(f"포즈 모델 내려받는 중... ({path})")
-            urllib.request.urlretrieve(MODEL_URL, path)
+            # 임시 이름으로 받은 뒤 다 받으면 이름을 바꿈
+            # → 중간에 끊겨도 깨진 모델 파일이 남아 다음 실행을 망치지 않음
+            partial = path + ".part"
+            urllib.request.urlretrieve(MODEL_URL, partial)
+            os.replace(partial, path)
             return path
         except OSError:
-            continue  # 이 폴더에 못 쓰면 다음 후보로
+            continue  # 이 폴더에 못 쓰거나 다운로드가 실패하면 다음 후보로
     raise RuntimeError("포즈 모델 파일을 내려받지 못했어요. 인터넷 연결을 확인하세요.")
 
 

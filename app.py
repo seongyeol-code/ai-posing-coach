@@ -64,7 +64,7 @@ if not verdict.ok:
 
 # 후면 사진이면 선수 기준 왼쪽/오른쪽이 맞도록 라벨 정리
 landmarks = normalize_sides(landmarks, verdict.view)
-metrics = compute_all_metrics(landmarks)
+metrics = compute_all_metrics(landmarks, height, width)  # 사진 비율을 넘겨 각도 왜곡 방지
 pose_number = 1 if verdict.view == FRONT else 3
 
 # ── 1. 사진 + 판정 + 점수판 ─────────────────────────────

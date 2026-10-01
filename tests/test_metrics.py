@@ -353,5 +353,50 @@ class TestComputeAllMetrics(unittest.TestCase):
         self.assertIsInstance(result["joint_angles"], dict)
 
 
+# ---------------------------------------------------------------------------
+# 사진 비율 보정: 같은 자세는 사진 모양·자르기와 상관없이 같은 값이 나와야 함
+# ---------------------------------------------------------------------------
+
+# 실제 픽셀 위치 (사진 속 사람 하나, 비대칭 자세)
+_PIXEL_POSE = {
+    "left_shoulder": (420, 300), "right_shoulder": (580, 305),
+    "left_elbow":    (330, 290), "right_elbow":    (680, 280),
+    "left_wrist":    (350, 190), "right_wrist":    (650, 200),
+    "left_hip":      (455, 520), "right_hip":      (545, 515),
+    "left_knee":     (440, 680), "right_knee":     (575, 690),
+    "left_ankle":    (445, 850), "right_ankle":    (590, 840),
+}
+
+
+def _normalized(width: int, height: int, offset_x: int = 0, offset_y: int = 0):
+    """픽셀 자세를 (width x height) 사진에 놓았을 때의 MediaPipe 식 0~1 좌표"""
+    return _make_landmarks(**{
+        k: ((x + offset_x) / width, (y + offset_y) / height)
+        for k, (x, y) in _PIXEL_POSE.items()
+    })
+
+
+class TestAspectRatioCorrection(unittest.TestCase):
+
+    def test_same_pose_same_metrics_in_different_photo_shapes(self):
+        # 정사각형 사진 vs 가로로 긴 사진(좌우 여백 추가) vs 세로로 긴 사진(위아래 여백 추가)
+        square = compute_all_metrics(_normalized(1000, 1000), 1000, 1000)
+        wide = compute_all_metrics(_normalized(1920, 1000, offset_x=460), 1000, 1920)
+        tall = compute_all_metrics(_normalized(1000, 1500, offset_y=250), 1500, 1000)
+        for other in (wide, tall):
+            self.assertAlmostEqual(other["vtaper_ratio"], square["vtaper_ratio"], places=2)
+            for key, value in square["joint_angles"].items():
+                self.assertAlmostEqual(other["joint_angles"][key], value, delta=0.15, msg=key)
+            for key, value in square["symmetry"].items():
+                self.assertAlmostEqual(other["symmetry"][key], value, delta=0.15, msg=key)
+
+    def test_without_correction_angles_are_distorted(self):
+        # 비율을 넘기지 않으면(예전 방식) 가로로 긴 사진에서 각도가 달라짐 → 보정이 필요한 이유
+        square = compute_all_metrics(_normalized(1000, 1000), 1000, 1000)
+        wide_uncorrected = compute_all_metrics(_normalized(1920, 1000, offset_x=460))
+        diff = abs(wide_uncorrected["joint_angles"]["left_knee"] - square["joint_angles"]["left_knee"])
+        self.assertGreater(diff, 1.0)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
